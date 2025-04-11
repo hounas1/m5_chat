@@ -19,26 +19,48 @@
  #include "WiFi.h"
  #include "esp_now.h"
 
-// Define the receiver's MAC address (update this with your receiver's MAC)
-uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xCC, 0xF8}; // example MAC
+//uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xCC, 0xF8}; // minu
+uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xD6, 0x00}; // karl
  
- M5Canvas canvas(&M5Cardputer.Display);
- String data = "> ";
- 
- 
- void setup() {
+uint8_t value_sent = 0;
+
+typedef struct struct_message {
+    int id;
+    float value;
+} struct_message;
+
+struct_message myData;
+struct_message incomingData;
+
+void onSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+    M5.Log.printf("Send Status: %s\n", status == ESP_NOW_SEND_SUCCESS ? "Success" : "Fail");
+    M5.Lcd.fillScreen(BLACK);
+    M5.Lcd.setCursor(0,0);
+    M5.Lcd.setTextSize(2);
+    M5.Lcd.printf("Value sent: %.2f", myData.value);
+}
+
+void onReceive(const uint8_t * mac, const uint8_t *incomingDataBytes, int len) {
+    M5Cardputer.Speaker.tone(2000, 100);
+    memcpy(&incomingData, incomingDataBytes, sizeof(incomingData));
+    M5.Lcd.setCursor(0, 20);
+    M5.Lcd.printf("Received ID: %d, Value : %.2f", incomingData.id, incomingData.value);
+}
+
+void setup() {
     auto cfg = M5.config();
+    //M5.begin(cfg);
     M5Cardputer.begin(cfg, true);
-    
+
     WiFi.mode(WIFI_STA);
-    M5.Log.printf("Sender MAC Address: %s\n", WiFi.macAddress().c_str());
 
     if (esp_now_init() != ESP_OK) {
         M5.Log.println("ESP-NOW init failed");
         return;
     }
 
-    //esp_now_register_send_cb(onSent);
+    esp_now_register_send_cb(onSent);
+    esp_now_register_recv_cb(onReceive);
 
     esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, receiverMAC, 6);
@@ -49,54 +71,14 @@ uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xCC, 0xF8}; // example MAC
         M5.Log.println("Peer added");
     }
 
-    //myData.id = 1;
+    myData.id = 1;   //minu
+    //myData.id = 2; //karl
 
-    M5Cardputer.Display.setRotation(1);
-    M5Cardputer.Display.setTextSize(0.5);
-    M5Cardputer.Display.drawRect(0, 0, M5Cardputer.Display.width(),
-                                  M5Cardputer.Display.height() - 28, GREEN);
-    M5Cardputer.Display.setTextFont(&fonts::FreeSerifBoldItalic18pt7b);
+}
 
-    M5Cardputer.Display.fillRect(0, M5Cardputer.Display.height() - 4,
-                                  M5Cardputer.Display.width(), 4, GREEN);
- 
-     canvas.setTextFont(&fonts::FreeSerifBoldItalic18pt7b);
-     canvas.setTextSize(0.5);
-     canvas.createSprite(M5Cardputer.Display.width() - 8,
-                         M5Cardputer.Display.height() - 36);
-     canvas.setTextScroll(true);
-     canvas.println("Press Key and Enter to Input Text");
-     canvas.pushSprite(4, 4);
-     M5Cardputer.Display.drawString(data, 4, M5Cardputer.Display.height() - 24);
- }
- 
- void loop() {
-     M5Cardputer.update();
-     if (M5Cardputer.Keyboard.isChange()) {
-         if (M5Cardputer.Keyboard.isPressed()) {
-             Keyboard_Class::KeysState status = M5Cardputer.Keyboard.keysState();
- 
-             for (auto i : status.word) {
-                 data += i;
-             }
- 
-             if (status.del) {
-                 data.remove(data.length() - 1);
-             }
- 
-             if (status.enter) {
-                 data.remove(0, 2);
-                 canvas.println(data);
-                 canvas.pushSprite(4, 4);
-                 data = "> ";
-             }
- 
-             M5Cardputer.Display.fillRect(0, M5Cardputer.Display.height() - 28,
-                                          M5Cardputer.Display.width(), 25,
-                                          BLACK);
- 
-             M5Cardputer.Display.drawString(data, 4,
-                                            M5Cardputer.Display.height() - 24);
-         }
-     }
- }
+void loop() {
+    myData.value = random(0, 100) / 1.0;
+    value_sent = myData.value;
+    esp_now_send(receiverMAC, (uint8_t *) &myData, sizeof(myData));
+    delay(5000);
+}
