@@ -1,10 +1,4 @@
-/**
- * @file inputText.ino
- * @author SeanKwok (shaoxiang@m5stack.com)
- * @brief M5Cardputer input text test
- * @version 0.1
- * @date 2023-10-13
- *
+/*
  *
  * @Hardwares: M5Cardputer
  * @Platform Version: Arduino M5Stack Board Manager v2.0.7
@@ -22,14 +16,16 @@
  M5Canvas canvas(&M5Cardputer.Display);
  String data = "> ";
 
-uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xCC, 0xF8}; // minu
-//uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xD6, 0x00}; // karl
+//uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xCC, 0xF8}; // minu
+uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xD6, 0x00}; // karl
  
 uint8_t value_sent = 0;
 
+#define MAX_LEN 64
+
 typedef struct struct_message {
     int id;
-    String value;
+    char value[MAX_LEN];
 } struct_message;
 
 struct_message myData;
@@ -44,7 +40,6 @@ void onReceive(const uint8_t * mac, const uint8_t *incomingDataBytes, int len) {
     canvas.print(incomingData.value);
     canvas.println();
     canvas.pushSprite(4, 4);
-    
 }
 
 void setup() {
@@ -71,8 +66,8 @@ void setup() {
         M5.Log.println("Peer added");
     }
 
-    //myData.id = 1;   //minu
-    myData.id = 2; //karl
+    myData.id = 1;   //minu
+    //myData.id = 2; //karl
 
 
     //DISPLAY SETUP
@@ -104,24 +99,29 @@ void loop() {
 
             for (auto i : status.word){
                 data += i;
-                myData.value += i;
             }
             
             if (status.del){
-                data.remove(data.length() - 1);
-                myData.value.remove(data.length() - 1);
+                if(data.length() > 2){
+                    data.remove(data.length() - 1);
+                }
             }
 
             if(status.enter) {
                 data.remove(0, 2);
+                strncpy(myData.value, data.c_str(), MAX_LEN - 1);
+                myData.value[MAX_LEN - 1] = '/0';
+
                 canvas.print(myData.id);
                 canvas.print(": ");
                 canvas.print(data);
                 canvas.println();
                 canvas.pushSprite(4, 4);
+
                 esp_now_send(receiverMAC, (uint8_t *) &myData, sizeof(myData));
+
                 data = "> ";
-                myData.value.remove(0, sizeof(myData.value));
+                myData.value[0] = '\0';
             }
 
             M5Cardputer.Display.fillRect(0, M5Cardputer.Display.height() - 28,
