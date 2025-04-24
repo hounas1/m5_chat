@@ -7,17 +7,28 @@
  * M5Unified: https://github.com/m5stack/M5Unified
  */
 
- #include "M5Cardputer.h"
- #include "M5GFX.h"
+#include "M5Cardputer.h"
+#include "M5GFX.h"
 
- #include "WiFi.h"
- #include "esp_now.h"
+#include "WiFi.h"
+#include "esp_now.h"
 
- M5Canvas canvas(&M5Cardputer.Display);
- String data = "> ";
+#define ESP_NUMBER 1
 
-//uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xCC, 0xF8}; // minu
-uint8_t receiverMAC[] = {0x34, 0xB7, 0xDA, 0x56, 0xD6, 0x00}; // karl
+#if ESP_NUMBER == 1
+#define CLIENT_ID  1
+#define REMOTE_MAC {0x34, 0xB7, 0xDA, 0x56, 0xD6, 0x00} // karl
+#elif ESP_NUMBER == 2
+#define CLIENT_ID  1
+#define REMOTE_MAC {0x34, 0xB7, 0xDA, 0x56, 0xCC, 0xF8} // minu
+#else
+#error "Invalid ESP number"
+#endif
+
+M5Canvas canvas(&M5Cardputer.Display);
+String data = "> ";
+
+uint8_t receiverMAC[] = REMOTE_MAC;
  
 uint8_t value_sent = 0;
 
@@ -66,9 +77,7 @@ void setup() {
         M5.Log.println("Peer added");
     }
 
-    myData.id = 1;   //minu
-    //myData.id = 2; //karl
-
+    myData.id = CLIENT_ID;
 
     //DISPLAY SETUP
     M5Cardputer.Display.setRotation(1);
